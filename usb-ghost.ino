@@ -62,7 +62,7 @@ PROGMEM const char usbHidReportDescriptor[USB_CFG_HID_REPORT_DESCRIPTOR_LENGTH] 
   0x75, 0x01,                    //   REPORT_SIZE (1)
   0x95, 0x08,                    //   REPORT_COUNT (8)
   0x81, 0x02,                    //   INPUT (Data,Var,Abs)
-  0x95, 0x01,                    //   REPORT_COUNT (1)
+  0x95, 0x06,                    //   REPORT_COUNT (1)
   0x75, 0x08,                    //   REPORT_SIZE (8)
   0x25, 0x65,                    //   LOGICAL_MAXIMUM (101)
   0x19, 0x00,                    //   USAGE_MINIMUM (Reserved (no event indicated))
@@ -146,7 +146,8 @@ struct ReportKeyboard
    */
   uint8_t  report_id;
   uint8_t  modifiers;
-  uint8_t  key_code;
+  uint8_t  key_code[6];
+  
 };
 
 struct ReportMouse
@@ -203,6 +204,9 @@ struct pt gamepad_pt;
 struct pt shift_pt;
 struct pt green_pt;
 struct pt red_pt;
+struct pt yellow_pt;
+struct pt blue_pt;
+struct pt down_pt;
 
 ////////////////////////////////////////////////////////////////
 // Automatically called by usbpoll() when host makes a request
@@ -213,9 +217,9 @@ usbMsgLen_t usbFunctionSetup(uchar data[8])
 }
 
 //////////////////////////////////////////////////////////////
-void sendKey(uint8_t keycode, uint8_t modifiers)
+void sendKey(uint8_t index, uint8_t keycode, uint8_t modifiers)
 {
-  reportKeyboard.key_code = keycode;
+  reportKeyboard.key_code[index] = keycode;
   reportKeyboard.modifiers = modifiers;
   usbSetInterrupt((uchar*)&reportKeyboard, sizeof(reportKeyboard));
 }
@@ -253,69 +257,33 @@ void sendMouse(int8_t dx, int8_t dy, uint8_t buttons)
 }*/
 
 //////////////////////////////////////////////////////////////
-PT_THREAD(haunting_task(struct pt *pt))
-{
-   static uint32_t ts = 0;
-  static uint8_t i;
-  static uint8_t sequence[] = {
-    KEY_P, KEY_R, KEY_A, KEY_C, KEY_T, KEY_I, KEY_C, KEY_U, KEY_M, KEY_SPACE,
-  };
 
-  PT_BEGIN(pt);
-
-  for (;;)
-  {
-    // Type the word 'Practicum'
-    for (i = 0; i < sizeof(sequence); i++)
-    {
-      // Wait until it's dark enough
-      PT_WAIT_UNTIL(pt,light<LIGHT_LOW_THRES);
-
-      // Press a shift key for the first key in the sequence
-      if (i == 0)
-        sendKey(sequence[i],KEY_MOD_LEFT_SHIFT);
-      else
-        sendKey(sequence[i],0);
-
-      PT_DELAY(pt,10,ts);
-
-      // Release key
-      sendKey(KEY_NONE,0);
-      PT_DELAY(pt,250,ts);
-    }
-
-    // Move the mouse
-    for (i = 0; i < 30; i++)
-    {
-      // Wait until it's dark enough
-      PT_WAIT_UNTIL(pt,light<LIGHT_LOW_THRES);
-  
-      // Make mouse go bottom-left
-      sendMouse(-5,5,0);
-      PT_DELAY(pt,100,ts);
-    }
-  }
-  
-  PT_END(pt);
-}
 ///////////////////////////////////////////////////
 PT_THREAD(shift_task(struct pt *pt))
 {
   static uint32_t ts = 0;
   PT_BEGIN(pt);
+
+  /*for (;;) {
+  PT_WAIT_UNTIL(pt,digitalRead(btn_green)==LOW);
+  sendKey(0,KEY_NONE,KEY_MOD_LEFT_SHIFT);                                                                      
+  PT_WAIT_UNTIL(pt,digitalRead(btn_green)==HIGH);
+  sendKey(0,KEY_NONE,0);                                                                      
+  }*/
+  
   int green = digitalRead(btn_green);
   Serial.print("white = ");
   Serial.println(green);
   if(green ==LOW)
   {
-    sendKey(0,KEY_MOD_LEFT_SHIFT);                                                                            
+    sendKey(0,KEY_NONE,KEY_MOD_LEFT_SHIFT);                                                                            
   }else
   {
-     sendKey(KEY_NONE,0);
+     sendKey(0,KEY_NONE,0);
   }
   
   PT_DELAY(pt,1,ts)
-  PT_END(pt);
+  PT_END(pt); 
 }
 
 //////////////////////////////////////////////////////////////
@@ -323,21 +291,126 @@ PT_THREAD(green_task(struct pt *pt))
 {
    static uint32_t ts = 0;
   PT_BEGIN(pt);
-  int white = digitalRead(btn_white);
-  Serial.print("green = ");
-  Serial.println(white);
-  if(white ==LOW)
-  {
-    sendKey(KEY_V,0);                                                                             
+
+  for (;;) {
+  PT_WAIT_UNTIL(pt,digitalRead(btn_white)==LOW);
+  sendKey(1,KEY_V,0);                                                                      
+  PT_WAIT_UNTIL(pt,digitalRead(btn_white)==HIGH);
+  sendKey(1,KEY_NONE,0);                                                                      
   }
-  else
-  {
-    sendKey(KEY_NONE,0);
-  }
-  PT_DELAY(pt,1,ts)
+  //bool isgreen = white; 
+  //Serial.print("green = ");
+  //Serial.println(white);
+//  if(white ==LOW)
+//  {
+//  }
+//  else
+//  {
+//    sendKey(0,KEY_NONE,0);
+//  }
+//  PT_DELAY(pt,1,ts)
   PT_END(pt);
 }
+//////////////////////////////////////////////////////////////
+PT_THREAD(red_task(struct pt *pt))
+{
+   static uint32_t ts = 0;
+  PT_BEGIN(pt);
 
+  for (;;) {
+  PT_WAIT_UNTIL(pt,digitalRead(btn_red)==LOW);
+  sendKey(2,KEY_C,0);                                                                      
+  PT_WAIT_UNTIL(pt,digitalRead(btn_red)==HIGH);
+  sendKey(2,KEY_NONE,0);                                                                      
+  }
+  //bool isgreen = white; 
+  //Serial.print("green = ");
+  //Serial.println(white);
+//  if(white ==LOW)
+//  {
+//  }
+//  else
+//  {
+//    sendKey(0,KEY_NONE,0);
+//  }
+//  PT_DELAY(pt,1,ts)
+  PT_END(pt);
+}
+//////////////////////////////////////////////////////////////
+PT_THREAD(yellow_task(struct pt *pt))
+{
+   static uint32_t ts = 0;
+  PT_BEGIN(pt);
+
+  for (;;) {
+  PT_WAIT_UNTIL(pt,digitalRead(btn_yellow)==LOW);
+  sendKey(3,KEY_X,0);                                                                      
+  PT_WAIT_UNTIL(pt,digitalRead(btn_yellow)==HIGH);
+  sendKey(3,KEY_NONE,0);                                                                      
+  }
+  //bool isgreen = white; 
+  //Serial.print("green = ");
+  //Serial.println(white);
+//  if(white ==LOW)
+//  {
+//  }
+//  else
+//  {
+//    sendKey(0,KEY_NONE,0);
+//  }
+//  PT_DELAY(pt,1,ts)
+  PT_END(pt);
+}
+//////////////////////////////////////////////////////////////
+PT_THREAD(blue_task(struct pt *pt))
+{
+   static uint32_t ts = 0;
+  PT_BEGIN(pt);
+
+  for (;;) {
+  PT_WAIT_UNTIL(pt,digitalRead(btn_blue)==LOW);
+  sendKey(4,KEY_Z,0);                                                                      
+  PT_WAIT_UNTIL(pt,digitalRead(btn_blue)==HIGH);
+  sendKey(4,KEY_NONE,0);                                                                      
+  }
+  //bool isgreen = white; 
+  //Serial.print("green = ");
+  //Serial.println(white);
+//  if(white ==LOW)
+//  {
+//  }
+//  else
+//  {
+//    sendKey(0,KEY_NONE,0);
+//  }
+//  PT_DELAY(pt,1,ts)
+  PT_END(pt);
+}
+//////////////////////////////////////////////////////////////
+PT_THREAD(down_task(struct pt *pt))
+{
+   static uint32_t ts = 0;
+  PT_BEGIN(pt);
+
+  for (;;) {
+  PT_WAIT_UNTIL(pt,analogRead(joystick_y)<=2);
+  sendKey(5,KEY_UP_ARROW,0);                                                                      
+  PT_WAIT_UNTIL(pt,analogRead(joystick_y)>2);
+  sendKey(5,KEY_NONE,0);                                                                      
+  }
+  //bool isgreen = white; 
+  //Serial.print("green = ");
+  //Serial.println(white);
+//  if(white ==LOW)
+//  {
+//  }
+//  else
+//  {
+//    sendKey(0,KEY_NONE,0);
+//  }
+//  PT_DELAY(pt,1,ts)
+  PT_END(pt);
+}
 //////////////////////////////////////////////////////////////
 PT_THREAD(gamepad_task(struct pt *pt))
 {
@@ -355,7 +428,11 @@ PT_THREAD(main_task(struct pt *pt))
 
 //  light_task(&light_pt);
   shift_task(&shift_pt);
-  green_task(&green_pt);   
+  green_task(&green_pt);
+  red_task(&red_pt);   
+  yellow_task(&yellow_pt);
+  blue_task(&blue_pt);
+  down_task(&down_pt);
  /* PT_WAIT_UNTIL(pt,usbInterruptIsReady());
   gamepad_task(&gamepad_pt);
   PT_WAIT_UNTIL(pt,usbInterruptIsReady());
@@ -388,7 +465,8 @@ void setup()
   // Initialize USB reports
   reportKeyboard.report_id = REPORT_ID_KEYBOARD;
   reportKeyboard.modifiers = 0;
-  reportKeyboard.key_code = KEY_NONE;
+  reportKeyboard.key_code[0] = KEY_NONE;
+  reportKeyboard.key_code[1] = KEY_NONE;
 
   reportMouse.report_id = REPORT_ID_MOUSE;
   reportMouse.dx = 0;
